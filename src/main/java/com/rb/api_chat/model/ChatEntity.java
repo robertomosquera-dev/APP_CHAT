@@ -18,9 +18,6 @@ import java.util.UUID;
 @Document(collection = "chat")
 public class ChatEntity extends BaseDocument{
 
-    @Id
-    private UUID id;
-
     @Builder.Default
     private ChatType type = ChatType.PRIVATE;
 
@@ -29,7 +26,5 @@ public class ChatEntity extends BaseDocument{
     @Builder.Default
     private List<UUID> usersId = new ArrayList<>();
 
-    @CreatedDate
-    private Instant createdAt;
 
 }

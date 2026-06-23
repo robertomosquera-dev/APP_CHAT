@@ -1,9 +1,9 @@
 package com.rb.api_chat.config;
 
-import org.springframework.data.mongodb.config.EnableMongoAuditing;
+import org.springframework.data.mongodb.config.EnableReactiveMongoAuditing;
 import org.springframework.stereotype.Component;
 
 @Component
-@EnableMongoAuditing
+@EnableReactiveMongoAuditing
 public class MongoConfig {
 }

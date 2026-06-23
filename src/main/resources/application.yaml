@@ -1,6 +1,8 @@
 spring:
   application:
     name: API_CHAT
+
   data:
     mongodb:
-      uri: mongodb://root:1134@localhost:27017/?authSource=admin
+      uri: mongodb://root:1134@localhost:27017/api_chat?authSource=admin
+      auto-index-creation: true

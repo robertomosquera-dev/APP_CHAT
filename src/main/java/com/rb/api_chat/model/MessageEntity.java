@@ -17,9 +17,6 @@ import java.util.UUID;
 @Document(collection = "messages")
 public class MessageEntity extends BaseDocument{
 
-    @Id
-    private UUID id;
-
     private UUID chatId;
 
     private UUID senderId;
@@ -35,6 +32,4 @@ public class MessageEntity extends BaseDocument{
     @CreatedDate
     private Instant sentAt;
 
-    @LastModifiedDate
-    private Instant updatedAt;
 }

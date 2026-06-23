@@ -4,6 +4,7 @@ import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
@@ -18,27 +19,21 @@ import java.util.UUID;
 @Document(collection = "users")
 public class UserEntity extends BaseDocument{
 
-    @Id
-    private UUID id;
-
     private String username;
 
     private String firstName;
 
     private String lastName;
 
+    @Indexed(unique = true)
     private String email;
 
     private UserStatus status;
 
+    @Indexed(unique = true)
     private String phoneNumber;
 
     @Builder.Default
     private List<Contact> contacts = new ArrayList<>();
 
-    @CreatedDate
-    private Instant createdAt;
-
-    @LastModifiedDate
-    private Instant updatedAt;
 }
