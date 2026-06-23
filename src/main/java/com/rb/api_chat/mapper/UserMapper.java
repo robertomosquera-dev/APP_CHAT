@@ -14,5 +14,7 @@ public interface UserMapper {
     UserEntity toEntity(UserRegisterRequest userRegisterRequest);
 
     @Mapping( target = "rolesName", ignore = true)
+    @Mapping( target = "status", source = "status.online")
+    @Mapping( target = "lastSeen", source = "status.lastSeen")
     UserResponse toResponse(UserEntity userEntity);
 }
