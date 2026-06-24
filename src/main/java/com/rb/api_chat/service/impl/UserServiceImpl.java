@@ -3,6 +3,7 @@ package com.rb.api_chat.service.impl;
 import com.rb.api_chat.dto.request.ChangeAliasContactRequest;
 import com.rb.api_chat.dto.request.ContactToUserRequest;
 import com.rb.api_chat.dto.request.UserRegisterRequest;
+import com.rb.api_chat.dto.response.ContactResponse;
 import com.rb.api_chat.dto.response.UserResponse;
 import com.rb.api_chat.mapper.UserMapper;
 import com.rb.api_chat.model.Contact;
@@ -16,7 +17,12 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.RecursiveTask;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -92,11 +98,11 @@ public class UserServiceImpl implements IUserService {
 
     //En un futuro esto lo debe hacer el user nomas, osea ese userId lo sacaremos del token
     @Override
-    public Mono<Void> addContact(UUID userId, ContactToUserRequest contactToUserRequest) {
+    public Mono<Void> addContact(UUID id, ContactToUserRequest contactToUserRequest) {
         if (contactToUserRequest == null) {
             return Mono.error(() -> new RuntimeException("Los datos del contacto no pueden ser nulos"));
         }
-        return userRepository.findById(userId)
+        return userRepository.findById(id)
                 .switchIfEmpty(Mono.error(() -> new RuntimeException("Usuario logueado no encontrado")))
                 .flatMap(currentUser -> {
                     return userRepository.findByPhoneNumber(contactToUserRequest.number())
@@ -129,8 +135,8 @@ public class UserServiceImpl implements IUserService {
     }
 
     @Override
-    public Mono<Void> blockContact(UUID userId, UUID contactId) {
-        return userRepository.findById(userId)
+    public Mono<Void> blockContact(UUID id, UUID contactId) {
+        return userRepository.findById(id)
                 .switchIfEmpty(Mono.error(() -> new RuntimeException("Usuario logueado no encontrado")))
                 .flatMap(userEntity -> {
                     return userEntity.getContacts().stream()
@@ -146,8 +152,8 @@ public class UserServiceImpl implements IUserService {
     }
 
     @Override
-    public Mono<Void> removeContact(UUID userId, UUID contactId) {
-        return userRepository.findById(userId)
+    public Mono<Void> removeContact(UUID id, UUID contactId) {
+        return userRepository.findById(id)
                 .switchIfEmpty(Mono.error(() -> new RuntimeException("Usuario logueado no encontrado")))
                 .flatMap(userEntity -> {
                     return userEntity.getContacts().stream()
@@ -163,8 +169,8 @@ public class UserServiceImpl implements IUserService {
     }
 
     @Override
-    public Mono<Void> changeAliasContact(UUID userId, ChangeAliasContactRequest changeAliasContactRequest) {
-        return userRepository.findById(userId)
+    public Mono<Void> changeAliasContact(UUID id, ChangeAliasContactRequest changeAliasContactRequest) {
+        return userRepository.findById(id)
                 .switchIfEmpty(Mono.error(() -> new RuntimeException("Usuario logueado no encontrado")))
                 .flatMap(userEntity -> {
                     return userEntity.getContacts().stream()
@@ -177,6 +183,39 @@ public class UserServiceImpl implements IUserService {
                             .orElseGet(() -> Mono.error(() -> new RuntimeException("No se pudo cambiar el alias por que el contacto no existe en tu lista")));
                 })
                 .then();
+    }
+
+    @Override
+    public Flux<ContactResponse> AllContact(UUID id) {
+        return userRepository.findById(id)
+                .switchIfEmpty(Mono.error(() -> new RuntimeException("Usuario logueado no encontrado")))
+                .flatMapMany(userEntity -> {
+
+                    Map<UUID,Contact> contactMap = userEntity
+                            .getContacts()
+                            .stream()
+                            .collect(Collectors.toMap(Contact::getUserId, Function.identity()));
+
+                    List<UUID> ContanctIds = contactMap.keySet().stream().toList();
+
+                    return userRepository
+                            .findAllById(ContanctIds)
+                            .map(friendEntity -> {
+                                Contact localContact = contactMap.get(friendEntity.getId());
+
+                                return ContactResponse.builder()
+                                        .id(friendEntity.getId())
+                                        .alias(localContact != null ? localContact.getAlias() : friendEntity.getUsername())
+                                        .username(friendEntity.getUsername())
+                                        .numberPhone(friendEntity.getPhoneNumber())
+                                        .urlPhoto(null)
+                                        .online(friendEntity.getStatus() != null && friendEntity.getStatus().isOnline())
+                                        .lastSeen(friendEntity.getStatus() != null ? friendEntity.getStatus().getLastSeen() : null)
+                                        .blocked(localContact != null && localContact.getBlocked())
+                                        .build();
+
+                            });
+                });
     }
 
     //En un futuro esto lo debe hacer el user nomas, osea ese userId lo sacaremos del token
