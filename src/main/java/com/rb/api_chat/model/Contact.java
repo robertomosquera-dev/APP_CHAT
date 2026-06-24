@@ -11,6 +11,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class Contact {
     private UUID userId;
-    private Boolean blocked;
+    @Builder.Default
+    private Boolean blocked = false;
     private String alias;
 }

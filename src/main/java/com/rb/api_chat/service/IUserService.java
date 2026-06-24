@@ -1,5 +1,7 @@
 package com.rb.api_chat.service;
 
+import com.rb.api_chat.dto.request.ChangeAliasContactRequest;
+import com.rb.api_chat.dto.request.ContactToUserRequest;
 import com.rb.api_chat.dto.request.UserRegisterRequest;
 import com.rb.api_chat.dto.response.UserResponse;
 import reactor.core.publisher.Flux;
@@ -20,4 +22,12 @@ public interface IUserService {
     Mono<UserResponse> disableStatus(UUID id);
 
     Flux<UserResponse> findAllUsers();
+
+    Mono<Void> addContact(UUID userId, ContactToUserRequest contactToUserRequest);
+
+    Mono<Void> blockContact(UUID userId, UUID contactId);
+
+    Mono<Void> removeContact(UUID userId, UUID contactId);
+
+    Mono<Void> changeAliasContact(UUID userId, ChangeAliasContactRequest changeAliasContactRequest);
 }
