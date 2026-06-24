@@ -12,3 +12,6 @@ minio:
   access-key: admin
   secret-key: admin123
   bucket-name: images
+
+resend:
+  api-key: ${RESEND_API_KEY}
