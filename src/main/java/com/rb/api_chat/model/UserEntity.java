@@ -25,6 +25,8 @@ public class UserEntity extends BaseDocument{
 
     private String lastName;
 
+    private String photoUrl;
+
     @Indexed(unique = true)
     private String email;
 

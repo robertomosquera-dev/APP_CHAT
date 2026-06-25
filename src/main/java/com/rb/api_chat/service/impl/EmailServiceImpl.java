@@ -6,6 +6,7 @@ import com.resend.Resend;
 import com.resend.services.emails.model.CreateEmailOptions;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StreamUtils;
@@ -23,13 +24,16 @@ public class EmailServiceImpl implements IEmailService {
 
     private final Resend resend;
 
+    @Value("${resend.from}")
+    private String from;
+
     @Override
     public Mono<Void> sendVerificationEmail(String to, String code) {
         return Mono
                 .fromCallable(() -> {
                     CreateEmailOptions createEmailOptions = CreateEmailOptions
                             .builder()
-                            .from("onboarding@resend.dev")
+                            .from(from)
                             .to(to)
                             .subject("Código de verificación")
                             .html(loadHtmlVerificationTemplate(code))

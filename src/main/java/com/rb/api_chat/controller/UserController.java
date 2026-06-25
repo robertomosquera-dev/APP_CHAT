@@ -3,11 +3,14 @@ package com.rb.api_chat.controller;
 import com.rb.api_chat.dto.request.ChangeAliasContactRequest;
 import com.rb.api_chat.dto.request.ContactToUserRequest;
 import com.rb.api_chat.dto.request.UserRegisterRequest;
+import com.rb.api_chat.dto.response.ContactResponse;
 import com.rb.api_chat.dto.response.UserResponse;
 import com.rb.api_chat.service.IUserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -21,10 +24,11 @@ public class UserController {
 
     private final IUserService userService;
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Mono<UserResponse> createUser(
-            @Valid @RequestBody UserRegisterRequest request) {
-        return userService.createUser(request);
+            @RequestPart("data") UserRegisterRequest request,
+            @RequestPart("img") FilePart img) {
+        return userService.createUser(request, img);
     }
 
     @GetMapping("/{id}")
@@ -56,10 +60,6 @@ public class UserController {
         return userService.findAllUsers();
     }
 
-    /* ==========================================
-       🆕 NUEVOS ENDPOINTS PARA CONTACTOS
-       ========================================== */
-
     @PostMapping("/{userId}/contacts")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> addContact(
@@ -90,5 +90,18 @@ public class UserController {
             @PathVariable UUID userId,
             @Valid @RequestBody ChangeAliasContactRequest changeAliasContactRequest) {
         return userService.changeAliasContact(userId, changeAliasContactRequest);
+    }
+
+    @PatchMapping(value = "/{id}/photo",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Mono<UserResponse> changeProfilePicture(
+            @PathVariable UUID id,
+            @RequestPart FilePart img) {
+        return userService.changeProfilePicture(id, img);
+    }
+
+    @GetMapping("/{userId}/contacts")
+    public Flux<ContactResponse> allContacts(
+            @PathVariable UUID userId) {
+        return userService.allContact(userId);
     }
 }

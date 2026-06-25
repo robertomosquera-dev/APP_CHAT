@@ -9,5 +9,5 @@ public interface IStorageService {
     Flux<String> getAllUrl(Flux<String> fileNames);
     Mono<String> getUrl(String fileName);
     Mono<Void> deleteFile(String fileName);
-    Mono<String> uploadFile(FilePart newFile, String folder, String oldFile);
+    Mono<String> updateFile(FilePart newFile, String folder, String oldFile);
 }

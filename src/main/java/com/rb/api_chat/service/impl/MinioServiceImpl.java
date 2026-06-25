@@ -43,7 +43,8 @@ public class MinioServiceImpl implements IStorageService {
     }
 
     @Override
-    public Mono<String> uploadFile(FilePart newFile, String folder, String oldFile) {
+    public Mono<String> updateFile(FilePart newFile, String folder, String oldFile) {
+        if(oldFile == null) return uploadFile(newFile, folder);
         return deleteFile(oldFile)
                 .then(uploadFile(newFile, folder));
     }

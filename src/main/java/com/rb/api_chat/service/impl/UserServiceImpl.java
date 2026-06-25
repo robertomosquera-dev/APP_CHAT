@@ -10,8 +10,11 @@ import com.rb.api_chat.model.Contact;
 import com.rb.api_chat.model.UserEntity;
 import com.rb.api_chat.model.UserStatus;
 import com.rb.api_chat.repository.UserRepository;
+import com.rb.api_chat.service.IStorageService;
 import com.rb.api_chat.service.IUserService;
+import com.rb.api_chat.util.FileBuckets;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -25,13 +28,14 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class UserServiceImpl implements IUserService {
+public class UserServiceImpl implements IUserService , FileBuckets {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final IStorageService storageService;
 
     @Override
-    public Mono<UserResponse> createUser(UserRegisterRequest request) {
+    public Mono<UserResponse> createUser(UserRegisterRequest request,FilePart img) {
 
         UserEntity userEntity = userMapper.toEntity(request);
 
@@ -42,9 +46,23 @@ public class UserServiceImpl implements IUserService {
                         .build()
         );
 
-        return userRepository
-                .save(userEntity)
-                .map(userMapper::toResponse);
+        return storageService
+                .uploadFile(img,PROFILE_PICTURES)
+                .flatMap(s -> {
+                    userEntity.setPhotoUrl(s);
+                    return userRepository.save(userEntity);
+                })
+                .map(userMapper::toResponse)
+                .flatMap(this::toResponseWithPhoto);
+    }
+
+    private Mono<UserResponse> toResponseWithPhoto(UserResponse userResponse){
+        if(userResponse.photoUrl() == null){
+            return Mono.just(userResponse);
+        }
+        return storageService
+                .getUrl(userResponse.photoUrl())
+                .map(s -> userResponse.toBuilder().photoUrl(s).build());
     }
 
     @Override
@@ -59,7 +77,8 @@ public class UserServiceImpl implements IUserService {
                                 )
                         )
                 )
-                .map(userMapper::toResponse);
+                .map(userMapper::toResponse)
+                .flatMap(this::toResponseWithPhoto);
     }
 
     @Override
@@ -74,7 +93,8 @@ public class UserServiceImpl implements IUserService {
                                 )
                         )
                 )
-                .map(userMapper::toResponse);
+                .map(userMapper::toResponse)
+                .flatMap(this::toResponseWithPhoto);
     }
 
     @Override
@@ -89,10 +109,10 @@ public class UserServiceImpl implements IUserService {
 
     @Override
     public Flux<UserResponse> findAllUsers() {
-
         return userRepository
                 .findAll()
-                .map(userMapper::toResponse);
+                .map(userMapper::toResponse)
+                .flatMap(this::toResponseWithPhoto);
     }
 
     //En un futuro esto lo debe hacer el user nomas, osea ese userId lo sacaremos del token
@@ -185,7 +205,24 @@ public class UserServiceImpl implements IUserService {
     }
 
     @Override
-    public Flux<ContactResponse> AllContact(UUID id) {
+    public Mono<UserResponse> changeProfilePicture(UUID id, FilePart img) {
+        return userRepository
+                .findById(id)
+                .switchIfEmpty(Mono.error(() -> new RuntimeException("Usuario no encontrado")))
+                .flatMap(user -> storageService
+                        .updateFile(img, PROFILE_PICTURES, user.getPhotoUrl())
+                        .flatMap(newUrl -> {
+                            user.setPhotoUrl(newUrl);
+                            return userRepository.save(user);
+                        })
+                )
+                .map(userMapper::toResponse)
+                .flatMap(this::toResponseWithPhoto);
+    }
+
+
+    @Override
+    public Flux<ContactResponse> allContact(UUID id) {
         return userRepository.findById(id)
                 .switchIfEmpty(Mono.error(() -> new RuntimeException("Usuario logueado no encontrado")))
                 .flatMapMany(userEntity -> {
@@ -199,19 +236,22 @@ public class UserServiceImpl implements IUserService {
 
                     return userRepository
                             .findAllById(ContanctIds)
-                            .map(friendEntity -> {
+                            .flatMap(friendEntity -> {
                                 Contact localContact = contactMap.get(friendEntity.getId());
-
-                                return ContactResponse.builder()
-                                        .id(friendEntity.getId())
-                                        .alias(localContact != null ? localContact.getAlias() : friendEntity.getUsername())
-                                        .username(friendEntity.getUsername())
-                                        .numberPhone(friendEntity.getPhoneNumber())
-                                        .urlPhoto(null)
-                                        .online(friendEntity.getStatus() != null && friendEntity.getStatus().isOnline())
-                                        .lastSeen(friendEntity.getStatus() != null ? friendEntity.getStatus().getLastSeen() : null)
-                                        .blocked(localContact != null && localContact.getBlocked())
-                                        .build();
+                                return storageService
+                                        .getUrl(friendEntity.getPhotoUrl())
+                                        .map(photoUrl -> {
+                                            return ContactResponse.builder()
+                                                    .id(friendEntity.getId())
+                                                    .alias(localContact != null ? localContact.getAlias() : friendEntity.getUsername())
+                                                    .username(friendEntity.getUsername())
+                                                    .numberPhone(friendEntity.getPhoneNumber())
+                                                    .photoUrl(photoUrl)
+                                                    .online(friendEntity.getStatus() != null && friendEntity.getStatus().isOnline())
+                                                    .lastSeen(friendEntity.getStatus() != null ? friendEntity.getStatus().getLastSeen() : null)
+                                                    .blocked(localContact != null && localContact.getBlocked())
+                                                    .build();
+                                        });
 
                             });
                 });
@@ -243,6 +283,7 @@ public class UserServiceImpl implements IUserService {
                     return userRepository.save(user);
 
                 })
-                .map(userMapper::toResponse);
+                .map(userMapper::toResponse)
+                .flatMap(this::toResponseWithPhoto);
     }
 }

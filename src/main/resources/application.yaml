@@ -15,3 +15,4 @@ minio:
 
 resend:
   api-key: ${RESEND_API_KEY}
+  from: ${DEFAULT_FROM_EMAIL}

@@ -11,7 +11,7 @@ public record ContactResponse(
         String alias,
         String username,
         String numberPhone,
-        String urlPhoto,
+        String photoUrl,
         boolean online,
         Instant lastSeen,
         boolean blocked
