@@ -46,10 +46,13 @@ public class UserServiceImpl implements IUserService , FileBuckets {
                         .build()
         );
 
-        return storageService
-                .uploadFile(img,PROFILE_PICTURES)
+        Mono<String> photoMono = img != null
+                ? storageService.uploadFile(img, PROFILE_PICTURES)
+                : Mono.just("");
+
+        return photoMono
                 .flatMap(s -> {
-                    userEntity.setPhotoUrl(s);
+                    if (!s.isEmpty()) userEntity.setPhotoUrl(s);
                     return userRepository.save(userEntity);
                 })
                 .map(userMapper::toResponse)

@@ -46,6 +46,11 @@ public class MessageServiceImpl implements IMessageService , FileBuckets {
         UUID senderId = messageRequest.senderId();
         String content = messageRequest.content();
         MessageType type = messageRequest.type();
+
+        if (chatId == null && messageRequest.receiverId() == null) {
+            return Mono.error(new RuntimeException("Debe proporcionar chatId o receiverId"));
+        }
+
         return chatService
                 .findByIdAndType(chatId, chatType)
                 .switchIfEmpty(
@@ -78,6 +83,18 @@ public class MessageServiceImpl implements IMessageService , FileBuckets {
         Pageable pageable = PageRequest.of(page, 30, Sort.by(Sort.Direction.DESC, "createdAt"));
         return messageRepository
                 .findByChatId(chatId,pageable)
+                .map(mapper::toMessageResponse);
+    }
+
+    @Override
+    public Mono<MessageResponse> changeStatus(UUID messageId, MessageStatus messageStatus) {
+        return messageRepository
+                .findById(messageId)
+                .switchIfEmpty(Mono.error(() -> new RuntimeException("Mensaje no encontrado")))
+                .flatMap(message -> {
+                    message.setStatus(message.getStatus().transitionTo(messageStatus));
+                    return messageRepository.save(message);
+                })
                 .map(mapper::toMessageResponse);
     }
 
