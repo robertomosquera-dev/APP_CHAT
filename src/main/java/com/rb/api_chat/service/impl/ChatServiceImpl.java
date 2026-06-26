@@ -41,6 +41,7 @@ public class ChatServiceImpl implements IChatService {
                     .map(privateChatResponse -> (ChatResponse) privateChatResponse);
             case GROUP -> createGroupChat(chatName, senderId, receiverIds)
                     .map(groupChatResponse -> (ChatResponse) groupChatResponse);
+            default -> Mono.error(new RuntimeException("Tipo de chat no soportado"));
         };
     }
 
@@ -106,47 +107,40 @@ public class ChatServiceImpl implements IChatService {
                 );
     }
 
-//    @Override
-//    public Mono<ChatResponse> findById(UUID chatId) {
-//        return chatRepository
-//                .findById(chatId)
-//                .switchIfEmpty(Mono.error(() -> new RuntimeException("Chat no encontrado")))
-//                .map(chatEntity -> {
-//                    UUID senderId = chatEntity.getCreatedBy();
-//                    UUID receiverId = chatEntity
-//                            .getUsersId()
-//                            .stream()
-//                            .filter(id -> !id.equals(senderId))
-//                            .findFirst()
-//                            .orElseThrow(() -> new RuntimeException("Receptor no encontrado"));
-//                    return ChatResponse.builder()
-//                            .chatId(chatEntity.getId())
-//                            .senderId(senderId)
-//                            .receiverId(receiverId)
-//                            .createdAt(chatEntity.getCreatedAt())
-//                            .build();
-//                });    }
-//
-//    @Override
-//    public Mono<ChatResponse> findByIdAndType(UUID chatId, ChatType type) {
-//        return chatRepository
-//                .findByIdAndType(chatId,type)
-//                .switchIfEmpty(Mono.error(() -> new RuntimeException("Chat no encontrado")))
-//                .map(chatEntity -> {
-//                    UUID senderId = chatEntity.getCreatedBy();
-//                    UUID receiverId = chatEntity
-//                            .getUsersId()
-//                            .stream()
-//                            .filter(id -> !id.equals(senderId))
-//                            .findFirst()
-//                            .orElseThrow(() -> new RuntimeException("Receptor no encontrado"));
-//                    return ChatResponse.builder()
-//                            .chatId(chatEntity.getId())
-//                            .senderId(senderId)
-//                            .receiverId(receiverId)
-//                            .createdAt(chatEntity.getCreatedAt())
-//                            .build();
-//                });
-//    }
+    public Mono<ChatResponse> findByIdAndType(UUID chatId, ChatType type) {
+        return switch (type){
+            case PRIVATE -> findByPrivateId(chatId).map(privateChatResponse -> (PrivateChatResponse) privateChatResponse);
+            case GROUP -> findByGroupId(chatId).map(groupChatResponse -> (GroupChatResponse) groupChatResponse);
+            default -> Mono.error(new RuntimeException("Tipo de chat no soportado"));
+        };
+    }
 
+    private Mono<PrivateChatResponse> findByPrivateId(UUID chatId) {
+        return chatRepository
+                .findById(chatId)
+                .map(chat -> {
+                    return PrivateChatResponse
+                            .builder()
+                            .chatId(chat.getCreatedBy())
+                            .senderId(chat.getCreatedBy())
+                            .receiverId(chat.getUsersId().getFirst())
+                            .createdAt(chat.getCreatedAt())
+                            .build();
+                });
+    }
+
+    private Mono<GroupChatResponse> findByGroupId(UUID chatId) {
+        return chatRepository
+                .findById(chatId)
+                .map(chat -> {
+                    return GroupChatResponse
+                            .builder()
+                            .chatId(chat.getId())
+                            .name(chat.getName())
+                            .usersId(chat.getUsersId())
+                            .adminsId(chat.getAdminsId())
+                            .createdAt(chat.getCreatedAt())
+                            .build();
+                });
+    }
 }

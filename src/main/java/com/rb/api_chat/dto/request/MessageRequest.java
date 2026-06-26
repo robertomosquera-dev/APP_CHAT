@@ -6,7 +6,6 @@ import java.util.UUID;
 
 public record MessageRequest(
     UUID senderId,
-    UUID receiverId,
     UUID chatId,
     String content,
     MessageType type
