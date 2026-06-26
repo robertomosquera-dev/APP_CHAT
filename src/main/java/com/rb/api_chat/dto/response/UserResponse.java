@@ -18,4 +18,7 @@ public record UserResponse(
         String phoneNumber,
         List<String> rolesName
 ) {
+    public String getFullName() {
+        return firstName + " " + lastName;
+    }
 }

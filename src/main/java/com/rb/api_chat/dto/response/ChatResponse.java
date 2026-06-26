@@ -1,12 +1,11 @@
 package com.rb.api_chat.dto.response;
 
+import lombok.Builder;
+
 import java.time.Instant;
 import java.util.UUID;
 
-public record ChatResponse (
-        UUID id,
-        UUID senderId,
-        UUID receiverId,
-        Instant createdAt
-){
+
+public interface ChatResponse {
+    UUID chatId();
 }

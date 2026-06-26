@@ -26,5 +26,10 @@ public class ChatEntity extends BaseDocument{
     @Builder.Default
     private List<UUID> usersId = new ArrayList<>();
 
+    @Builder.Default
+    private List<UUID> adminsId = new ArrayList<>();
+
+    private UUID createdBy;
+
 
 }

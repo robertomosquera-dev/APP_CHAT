@@ -257,6 +257,11 @@ public class UserServiceImpl implements IUserService , FileBuckets {
                 });
     }
 
+    @Override
+    public Flux<UserResponse> allByIds(List<UUID> ids) {
+        return userRepository.findByIdIn(ids).map(userMapper::toResponse);
+    }
+
     //En un futuro esto lo debe hacer el user nomas, osea ese userId lo sacaremos del token
     private Mono<UserResponse> updateStatus(
             UUID id,

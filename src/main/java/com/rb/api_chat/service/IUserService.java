@@ -9,6 +9,7 @@ import org.springframework.http.codec.multipart.FilePart;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface IUserService {
@@ -36,5 +37,7 @@ public interface IUserService {
     Mono<UserResponse> changeProfilePicture(UUID id, FilePart img);
 
     Flux<ContactResponse> allContact(UUID id);
+
+    Flux<UserResponse> allByIds(List<UUID> ids);
 
 }
