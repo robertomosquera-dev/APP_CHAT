@@ -15,6 +15,5 @@ public record MessageResponse(
         String content,
         String fileUrl,
         Instant sentAt
-
 ) {
 }

@@ -10,6 +10,7 @@ import java.util.UUID;
 public record GroupChatResponse(
         UUID chatId,
         String name,
+        String photoUrl,
         List<UUID> usersId,
         List<UUID> adminsId,
         Instant createdAt

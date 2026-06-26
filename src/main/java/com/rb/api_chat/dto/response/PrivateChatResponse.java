@@ -10,5 +10,7 @@ public record PrivateChatResponse (
         UUID chatId,
         UUID senderId,
         UUID receiverId,
+        String name,
+        String photoUrl,
         Instant createdAt
 ) implements ChatResponse{}

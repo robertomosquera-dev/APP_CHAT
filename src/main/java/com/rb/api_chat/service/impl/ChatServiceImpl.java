@@ -7,10 +7,14 @@ import com.rb.api_chat.model.ChatEntity;
 import com.rb.api_chat.model.ChatType;
 import com.rb.api_chat.repository.ChatRepository;
 import com.rb.api_chat.service.IChatService;
+import com.rb.api_chat.service.IStorageService;
 import com.rb.api_chat.service.IUserService;
+import com.rb.api_chat.util.FileBuckets;
 import com.rb.api_chat.util.UtilsFunctional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
@@ -19,13 +23,14 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class ChatServiceImpl implements IChatService {
+public class ChatServiceImpl implements IChatService, FileBuckets {
 
     private final ChatRepository chatRepository;
     private final IUserService userService;
+    private final IStorageService storageService;
 
     @Override
-    public Mono<ChatResponse> createChat(String chatName, UUID senderId, List<UUID> receiverIds, ChatType type) {
+    public Mono<ChatResponse> createChat(FilePart img, String chatName, UUID senderId, List<UUID> receiverIds, ChatType type) {
 
         if (type.equals(ChatType.PRIVATE) && receiverIds.size() != 1) {
             return Mono.error(new RuntimeException("Solo se puede crear un chat privado con un solo receptor"));
@@ -38,7 +43,7 @@ public class ChatServiceImpl implements IChatService {
         return switch (type) {
             case PRIVATE -> createPrivateChat(senderId, receiverIds.getFirst())
                     .map(privateChatResponse -> (ChatResponse) privateChatResponse);
-            case GROUP -> createGroupChat(chatName, senderId, receiverIds)
+            case GROUP -> createGroupChat(img,chatName, senderId, receiverIds)
                     .map(groupChatResponse -> (ChatResponse) groupChatResponse);
             default -> Mono.error(new RuntimeException("Tipo de chat no soportado"));
         };
@@ -72,7 +77,7 @@ public class ChatServiceImpl implements IChatService {
                 );
     }
 
-    private Mono<GroupChatResponse> createGroupChat(String chatName, UUID senderId, List<UUID> receiverIds) {
+    private Mono<GroupChatResponse> createGroupChat(FilePart img,String chatName, UUID senderId, List<UUID> receiverIds) {
         return userService.getUserById(senderId)
                 .zipWith(userService.allByIds(receiverIds).collectList())
                 .flatMap(tuple -> {
@@ -85,20 +90,27 @@ public class ChatServiceImpl implements IChatService {
 
                     String name = chatName.isBlank() ? UtilsFunctional.getChatNameDefaultGroup(receivers) : chatName;
 
-                    return chatRepository.save(
+                    Mono<String> photoUrl = img != null
+                            ? storageService.uploadFile(img, PROFILE_PICTURES).flatMap(storageService::getUrl)
+                            : Mono.just("");
+
+                    return photoUrl.flatMap(url -> chatRepository.save(
                             ChatEntity.builder()
                                     .type(ChatType.GROUP)
                                     .name(name)
                                     .usersId(allUsersId)
                                     .adminsId(List.of(sender.id()))
+                                    .photoUrl(url.isEmpty() ? null : url)
                                     .createdBy(sender.id())
                                     .build()
-                    );
+                    ));
+
                 })
                 .map(chatEntity ->
                         GroupChatResponse.builder()
                                 .chatId(chatEntity.getId())
                                 .name(chatEntity.getName())
+                                .photoUrl(chatEntity.getPhotoUrl())
                                 .usersId(chatEntity.getUsersId())
                                 .adminsId(chatEntity.getAdminsId())
                                 .createdAt(chatEntity.getCreatedAt())
@@ -115,18 +127,49 @@ public class ChatServiceImpl implements IChatService {
         };
     }
 
+    //El userId hacer referencia al usuario que desea el ver el char
+    public Mono<PrivateChatResponse> findByPrivateId(UUID userId,UUID chatId) {
+        return chatRepository
+                .findById(chatId)
+                .switchIfEmpty(Mono.error(() -> new RuntimeException("Chat no encontrado")))
+                .flatMap(chat -> {
+                    UUID receiverId = chat.getUsersId().stream().filter(id -> !id.equals(userId))
+                            .findFirst()
+                            .orElseThrow();
+                    return userService.getUserById(receiverId)
+                            .map(userResponse -> {
+                               return PrivateChatResponse
+                                       .builder()
+                                       .chatId(chat.getId())
+                                       .senderId(chat.getCreatedBy())
+                                       .name(chat.getName().isBlank() ? userResponse.phoneNumber() : chat.getName())
+                                       .receiverId(chat.getUsersId().stream()
+                                               .filter(id -> !id.equals(chat.getCreatedBy()))
+                                               .findFirst()
+                                               .orElseThrow()
+                                       )
+                                       .photoUrl(userResponse.photoUrl())
+                                       .createdAt(chat.getCreatedAt())
+                                       .build();
+                            });
+                });
+    }
+
     private Mono<PrivateChatResponse> findByPrivateId(UUID chatId) {
         return chatRepository
                 .findById(chatId)
-                .map(chat -> {
-                    return PrivateChatResponse
-                            .builder()
-                            .chatId(chat.getCreatedBy())
-                            .senderId(chat.getCreatedBy())
-                            .receiverId(chat.getUsersId().getFirst())
-                            .createdAt(chat.getCreatedAt())
-                            .build();
-                });
+                .map(chat -> PrivateChatResponse
+                        .builder()
+                        .chatId(chat.getId())
+                        .senderId(chat.getCreatedBy())
+                        .receiverId(chat.getUsersId().stream()
+                                .filter(id -> !id.equals(chat.getCreatedBy()))
+                                .findFirst()
+                                .orElseThrow()
+                        )
+                        .createdAt(chat.getCreatedAt())
+                        .build()
+                );
     }
 
     private Mono<GroupChatResponse> findByGroupId(UUID chatId) {
@@ -141,6 +184,24 @@ public class ChatServiceImpl implements IChatService {
                             .adminsId(chat.getAdminsId())
                             .createdAt(chat.getCreatedAt())
                             .build();
+                });
+    }
+
+    public Flux<ChatResponse> findAllByUserId(UUID userId) {
+        return chatRepository.findByUsersIdContaining(userId)
+                .flatMap(chat -> switch (chat.getType()) {
+                    case PRIVATE -> findByPrivateId(userId, chat.getId())
+                            .map(r -> (ChatResponse) r);
+                    case GROUP -> Mono.just(GroupChatResponse.builder()
+                                    .chatId(chat.getId())
+                                    .name(chat.getName())
+                                    .photoUrl(chat.getPhotoUrl())
+                                    .usersId(chat.getUsersId())
+                                    .adminsId(chat.getAdminsId())
+                                    .createdAt(chat.getCreatedAt())
+                                    .build())
+                            .map(r -> (ChatResponse) r);
+                    default -> Mono.error(new RuntimeException("Tipo de chat no soportado"));
                 });
     }
 }

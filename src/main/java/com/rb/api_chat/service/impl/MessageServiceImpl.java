@@ -16,11 +16,16 @@ import com.rb.api_chat.service.IStorageService;
 import com.rb.api_chat.service.IUserService;
 import com.rb.api_chat.util.FileBuckets;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -29,7 +34,6 @@ public class MessageServiceImpl implements IMessageService , FileBuckets {
 
     private final MessageRepository messageRepository;
     private final IStorageService storageService;
-    private final IUserService userService;
     private final IChatService chatService;
     private final MessageMapper mapper;
 
@@ -43,19 +47,38 @@ public class MessageServiceImpl implements IMessageService , FileBuckets {
         String content = messageRequest.content();
         MessageType type = messageRequest.type();
         return chatService
-                .findByIdAndType(chatId,chatType)
-                .flatMap(chat -> {
-                   return switch (chat){
-                       case GroupChatResponse cg -> {
-                           if(cg.usersId().stream().noneMatch(id -> id.equals(senderId))){
-                                yield Mono.error(new RuntimeException("No puedes enviar un mensaje en este chat (No te encuentras entre los mienbros del grupo)"));
-                           }
-                           yield buildMessage(file,type,chatId,senderId,content).flatMap(messageRepository::save);
-                       }
-                       case PrivateChatResponse pc -> buildMessage(file,type,chatId,senderId,content).flatMap(messageRepository::save);
-                       default -> Mono.error(new IllegalStateException("Tipo de chat no soportado"));
-                   };
-                }).map(mapper::toMessageResponse);
+                .findByIdAndType(chatId, chatType)
+                .switchIfEmpty(
+                        messageRequest.receiverId() != null
+                                ? chatService.createChat(null, null, senderId, List.of(messageRequest.receiverId()), ChatType.PRIVATE)
+                                : Mono.error(new RuntimeException("Debe proporcionar un receptor para crear el chat"))
+                )
+                .flatMap(chat -> switch (chat) {
+                    case GroupChatResponse cg -> {
+                        if (cg.usersId().stream().noneMatch(id -> id.equals(senderId))) {
+                            yield Mono.error(new RuntimeException("No perteneces a este grupo"));
+                        }
+                        yield buildMessage(file, type, chat.chatId(), senderId, content).flatMap(messageRepository::save);
+                    }
+                    case PrivateChatResponse pc -> {
+                        if (!pc.senderId().equals(senderId) && !pc.receiverId().equals(senderId)) {
+                            yield Mono.error(new RuntimeException("No perteneces a este chat"));
+                        }
+                        yield buildMessage(file, type, chat.chatId(), senderId, content).flatMap(messageRepository::save);
+                    }
+                    default -> Mono.error(new IllegalStateException("Tipo de chat no soportado"));
+                })
+                .map(mapper::toMessageResponse);
+    }
+
+    //Se limitara el num de msj a 30
+    //Sera desendente
+    @Override
+    public Flux<MessageResponse> findAllByChatId(UUID chatId, Integer page) {
+        Pageable pageable = PageRequest.of(page, 30, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return messageRepository
+                .findByChatId(chatId,pageable)
+                .map(mapper::toMessageResponse);
     }
 
 

@@ -8,4 +8,5 @@ import java.util.UUID;
 
 public interface ChatResponse {
     UUID chatId();
+    String photoUrl();
 }
