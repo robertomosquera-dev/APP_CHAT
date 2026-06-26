@@ -10,7 +10,6 @@ import java.util.UUID;
 
 public interface IChatService {
     Mono<ChatResponse> createChat(String chatName,UUID senderId, List<UUID> receiverId, ChatType type);
-//    Mono<ChatResponse> findById(UUID chatId);
-//    Mono<ChatResponse> findByIdAndType(UUID chatId, ChatType type);
+    Mono<ChatResponse> findByIdAndType(UUID chatId, ChatType type);
 
 }

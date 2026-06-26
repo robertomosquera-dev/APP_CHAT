@@ -4,14 +4,17 @@ import com.rb.api_chat.model.MessageStatus;
 import com.rb.api_chat.model.MessageType;
 
 import java.time.Instant;
+import java.util.UUID;
 
 public record MessageResponse(
-        String messageId,
+        UUID id,
+        UUID senderId,
+        UUID chatId,
         MessageType type,
         MessageStatus status,
         String content,
-        String url,
-        Instant createdAt,
-        ChatResponse chat
+        String fileUrl,
+        Instant sentAt
+
 ) {
 }

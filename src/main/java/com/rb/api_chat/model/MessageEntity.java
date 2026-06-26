@@ -23,7 +23,8 @@ public class MessageEntity extends BaseDocument{
 
     private MessageType type;
 
-    private MessageStatus status;
+    @Builder.Default
+    private MessageStatus status = MessageStatus.SENT;
 
     private String content;
 

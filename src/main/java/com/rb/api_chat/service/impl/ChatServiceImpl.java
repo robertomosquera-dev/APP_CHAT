@@ -6,7 +6,6 @@ import com.rb.api_chat.dto.response.PrivateChatResponse;
 import com.rb.api_chat.model.ChatEntity;
 import com.rb.api_chat.model.ChatType;
 import com.rb.api_chat.repository.ChatRepository;
-import com.rb.api_chat.repository.UserRepository;
 import com.rb.api_chat.service.IChatService;
 import com.rb.api_chat.service.IUserService;
 import com.rb.api_chat.util.UtilsFunctional;
@@ -107,6 +106,7 @@ public class ChatServiceImpl implements IChatService {
                 );
     }
 
+    @Override
     public Mono<ChatResponse> findByIdAndType(UUID chatId, ChatType type) {
         return switch (type){
             case PRIVATE -> findByPrivateId(chatId).map(privateChatResponse -> (PrivateChatResponse) privateChatResponse);
